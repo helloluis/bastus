@@ -36,6 +36,10 @@ class RunManager:
         self.controls: dict[int, RunControl] = {}
         self.tasks: dict[int, asyncio.Task] = {}
 
+    @property
+    def has_active_runs(self) -> bool:
+        return any(not t.done() for t in self.tasks.values())
+
     async def start(self, config: RunConfig) -> int:
         run_id = await repo.create_run(self.db, config)
         config.run_id = run_id

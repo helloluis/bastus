@@ -77,6 +77,11 @@ async def provision_server() -> dict:
 
 @app.post("/api/server/destroy")
 async def destroy_server() -> dict:
+    if app.state.manager.has_active_runs:
+        raise HTTPException(
+            status_code=409,
+            detail="Cannot destroy the server while a run is in progress — abort or wait for it to finish.",
+        )
     ok = await app.state.server_mgr.destroy()
     if not ok:
         raise HTTPException(status_code=409, detail="no pod to destroy")

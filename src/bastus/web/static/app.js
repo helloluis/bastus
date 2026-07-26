@@ -14,6 +14,7 @@ const state = {
   goals: new Map(), // goal_key -> {node, turnsNode, category}
   turnCount: 0,
   server: { state: "not_provisioned" },
+  activeRunId: null,
 };
 
 const ACTIVE = new Set(["requested", "running", "paused"]);
@@ -42,7 +43,7 @@ async function init() {
   // RunPod server controls
   $("#btn-provision").addEventListener("click", provisionServer);
   $("#btn-destroy").addEventListener("click", destroyServer);
-  document.querySelector('input[name="mock"]').addEventListener("change", updateLaunchGating);
+  document.querySelector('input[name="mock"]').addEventListener("change", updateControls);
 
   // Category select-all / clear
   $("#cat-all").addEventListener("click", () => setAllCats(true));
@@ -63,6 +64,7 @@ async function init() {
 
   const hashId = parseInt(location.hash.replace("#", ""), 10);
   if (hashId) selectRun(hashId);
+  else if (state.activeRunId) selectRun(state.activeRunId); // watch an in-flight run across reloads
 }
 
 function setAllCats(on) {
@@ -133,7 +135,7 @@ function renderServer(s) {
     log.hidden = true;
   }
 
-  updateLaunchGating();
+  updateControls();
 }
 
 async function provisionServer() {
@@ -145,11 +147,23 @@ async function destroyServer() {
   await fetch("/api/server/destroy", { method: "POST" }).catch(() => {});
 }
 
-function updateLaunchGating() {
-  // No run can launch without a provisioned pod — only Provision is clickable first.
+function updateControls() {
   const ready = state.server.state === "ready";
-  $("#launch").disabled = !ready;
-  $("#launch-hint").classList.toggle("hidden", ready);
+  const active = !!state.activeRunId;
+  // Launch needs a pod AND no run already in flight (prevents accidental double-launch).
+  $("#launch").disabled = !ready || active;
+  const hint = $("#launch-hint");
+  if (active) {
+    hint.textContent = "A run is in progress…";
+    hint.classList.remove("hidden");
+  } else if (!ready) {
+    hint.textContent = "Provision the RunPod server to enable launching.";
+    hint.classList.remove("hidden");
+  } else {
+    hint.classList.add("hidden");
+  }
+  // Can't destroy the pod out from under a running test.
+  $("#btn-destroy").disabled = active;
 }
 
 async function loadCategories() {
@@ -184,6 +198,10 @@ async function loadRuns() {
     li.addEventListener("click", () => selectRun(r.run_id));
     list.append(li);
   }
+  // A run in flight (any) locks Launch and Destroy.
+  const active = runs.find((r) => ACTIVE.has(r.state));
+  state.activeRunId = active ? active.run_id : null;
+  updateControls();
 }
 
 // ---- launching ----
@@ -214,13 +232,14 @@ async function onLaunch(ev) {
     });
     if (!res.ok) throw new Error((await res.json()).detail || res.statusText);
     const { run_id } = await res.json();
+    state.activeRunId = run_id; // lock immediately so a double-click can't re-trigger
     await loadRuns();
     await selectRun(run_id);
   } catch (e) {
     alert("Launch failed: " + e.message);
   } finally {
-    btn.disabled = false;
     btn.textContent = "Launch run";
+    updateControls(); // governs disabled state (stays disabled while the run is active)
   }
 }
 
@@ -266,7 +285,10 @@ async function onEvent(msg) {
     case "snapshot":
     case "run_state":
       setStateBadge(d.state);
-      if (!ACTIVE.has(d.state)) refreshStats();
+      if (!ACTIVE.has(d.state)) {
+        refreshStats();
+        loadRuns(); // recomputes activeRunId → re-enables Launch/Destroy when the run ends
+      }
       break;
     case "goal_started":
       ensureGoal(d.goal_id, d.category, d.objective);

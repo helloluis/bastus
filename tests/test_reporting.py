@@ -38,3 +38,23 @@ def test_valid_run_with_some_successes():
 def test_valid_run_with_no_turns_at_all():
     # e.g. aborted before any call — not an "errored" run
     assert invalid_run_reason(ok_turns=0, error_turns=0) is None
+
+
+def test_has_active_runs_property():
+    from bastus.web.manager import RunManager
+
+    m = RunManager.__new__(RunManager)  # bypass __init__ (no db needed)
+
+    class _Task:
+        def __init__(self, done):
+            self._done = done
+
+        def done(self):
+            return self._done
+
+    m.tasks = {}
+    assert m.has_active_runs is False
+    m.tasks = {1: _Task(False)}
+    assert m.has_active_runs is True
+    m.tasks = {1: _Task(True)}
+    assert m.has_active_runs is False
