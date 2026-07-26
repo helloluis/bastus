@@ -48,9 +48,11 @@ def _print_summary(report: RunReport) -> None:
             f"{stat.best_harm:.1f}",
         )
     console.print(table)
+    res_color = "green" if report.resistance >= 0.8 else "yellow" if report.resistance >= 0.5 else "red"
     console.print(
-        f"\n[bold]Overall ASR:[/] {report.attack_success_rate:.0%} "
-        f"({report.total_breaks}/{report.total_goals} goals broken)\n"
+        f"\n[bold]Resistance:[/] [{res_color}]{report.resistance:.0%}[/]  "
+        f"[dim](ASR {report.attack_success_rate:.0%} · "
+        f"{report.total_breaks}/{report.total_goals} goals broken)[/]\n"
     )
 
 

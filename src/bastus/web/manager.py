@@ -17,6 +17,17 @@ from bastus.web.provision import ATTACKER_MODEL, ServerManager
 from bastus.web.sink import PersistSink
 
 
+def invalid_run_reason(ok_turns: int, error_turns: int) -> str | None:
+    """A run whose model calls all errored isn't a valid test — don't let it look
+    like a clean '0 breaks' result."""
+    if ok_turns == 0 and error_turns > 0:
+        return (
+            f"Invalid run: all {error_turns} model calls errored "
+            "(check the target/judge API credits or rate limits)."
+        )
+    return None
+
+
 class RunManager:
     def __init__(self, db: Database, broadcaster: Broadcaster, server_mgr: ServerManager | None = None) -> None:
         self.db = db
@@ -57,7 +68,14 @@ class RunManager:
             await self._set_state(run_id, "running")
             report = await Runner(sink=sink, settings=settings).run(config, control)
             await repo.set_totals(self.db, run_id, report.total_goals, report.total_breaks)
-            await self._set_state(run_id, "report_ready")
+            turns = await repo.get_turns(self.db, run_id)
+            ok = sum(1 for t in turns if t.verdict != "error")
+            errs = sum(1 for t in turns if t.verdict == "error")
+            reason = invalid_run_reason(ok, errs)
+            if reason:
+                await self._set_state(run_id, "failed", error=reason)
+            else:
+                await self._set_state(run_id, "report_ready")
         except RunAborted:
             await self._set_state(run_id, "aborted")
         except Exception as exc:  # noqa: BLE001 — surface any engine failure to the run row

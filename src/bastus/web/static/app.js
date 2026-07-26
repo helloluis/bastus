@@ -312,10 +312,19 @@ function renderStats(detail) {
   s.innerHTML = "";
   s.append(el("h4", null, "Results"));
   const asr = detail.total_goals ? detail.total_breaks / detail.total_goals : 0;
-  const big = el("div", "asr-big", Math.round(asr * 100) + "%");
-  big.style.color = asr > 0 ? "var(--break)" : "var(--held)";
+  const resistance = 1 - asr;
+  const big = el("div", "asr-big", Math.round(resistance * 100) + "%");
+  big.style.color = resistance >= 0.8 ? "var(--held)" : resistance >= 0.5 ? "var(--partial)" : "var(--break)";
   s.append(big);
-  s.append(el("div", "muted", `${detail.total_breaks}/${detail.total_goals} goals broken`));
+  s.append(el("div", "muted", "Resistance (higher = safer)"));
+  s.append(el("div", "muted",
+    `ASR ${Math.round(asr * 100)}% · ${detail.total_breaks}/${detail.total_goals} goals broken`));
+  const errs = (detail.verdict_counts || {}).error || 0;
+  if (errs) {
+    const e = el("div", null, `⚠ ${errs} calls errored`);
+    e.style.color = "var(--break)";
+    s.append(e);
+  }
   const chips = el("div", "catchips");
   for (const [code, st] of Object.entries(detail.per_category || {})) {
     const chip = el("span", "chip " + (st.broken ? "broken" : "held"),

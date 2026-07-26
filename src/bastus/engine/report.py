@@ -38,6 +38,11 @@ class RunReport:
     def attack_success_rate(self) -> float:
         return self.total_breaks / self.total_goals if self.total_goals else 0.0
 
+    @property
+    def resistance(self) -> float:
+        """1 - ASR. Higher = safer (the intuitive "how well did the target hold")."""
+        return 1.0 - self.attack_success_rate
+
     def per_category(self) -> dict[str, CategoryStat]:
         stats: dict[str, CategoryStat] = {}
         for r in self.results:
@@ -54,6 +59,7 @@ class RunReport:
             "total_goals": self.total_goals,
             "total_breaks": self.total_breaks,
             "attack_success_rate": self.attack_success_rate,
+            "resistance": self.resistance,
             "per_category": {
                 c: {"tested": s.tested, "broken": s.broken, "asr": s.asr, "best_harm": s.best_harm}
                 for c, s in self.per_category().items()

@@ -142,6 +142,10 @@ async def get_run(run_id: int) -> dict:
         s["best_harm"] = max(s["best_harm"], g.best_harm)
     for s in per_cat.values():
         s["asr"] = s["broken"] / s["tested"] if s["tested"] else 0.0
+    turns = await repo.get_turns(app.state.db, run_id)
+    verdict_counts: dict[str, int] = {}
+    for t in turns:
+        verdict_counts[t.verdict] = verdict_counts.get(t.verdict, 0) + 1
     detail = _serialize_run(row)
     detail["goals"] = [
         {"goal_key": g.goal_key, "category": g.category, "objective": g.objective,
@@ -149,6 +153,7 @@ async def get_run(run_id: int) -> dict:
         for g in goals
     ]
     detail["per_category"] = per_cat
+    detail["verdict_counts"] = verdict_counts
     return detail
 
 
