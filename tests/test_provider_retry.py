@@ -38,6 +38,23 @@ async def test_raises_after_exhausting_retries():
     await p.aclose()
 
 
+async def test_force_temperature_overrides_requested():
+    import json
+
+    seen = {}
+
+    def handler(request):
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json={"choices": [{"message": {"content": "x"}}]})
+
+    p = OpenAICompatProvider(
+        "http://x/v1", "m", "k", transport=httpx.MockTransport(handler), force_temperature=1.0
+    )
+    await p.complete([ProviderMessage("user", "hi")], temperature=0.0)  # requests 0.0
+    assert seen["temperature"] == 1.0  # but forced to 1.0
+    await p.aclose()
+
+
 async def test_non_retryable_4xx_raises_immediately():
     calls = {"n": 0}
 

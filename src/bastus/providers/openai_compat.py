@@ -33,6 +33,7 @@ class OpenAICompatProvider:
         timeout: float = 120.0,
         max_retries: int = 3,
         base_delay: float = 1.0,
+        force_temperature: float | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self.endpoint = endpoint.rstrip("/")
@@ -41,6 +42,9 @@ class OpenAICompatProvider:
         self.image_resolver = image_resolver
         self.max_retries = max_retries
         self.base_delay = base_delay
+        # Some endpoints pin temperature (e.g. Kimi Code's k3 requires 1); when set,
+        # this overrides whatever the caller requests.
+        self.force_temperature = force_temperature
         self._client = httpx.AsyncClient(timeout=timeout, transport=transport)
 
     def _render(self, msg: ProviderMessage) -> dict:
@@ -66,7 +70,7 @@ class OpenAICompatProvider:
         payload = {
             "model": self.model,
             "messages": [self._render(m) for m in messages],
-            "temperature": temperature,
+            "temperature": self.force_temperature if self.force_temperature is not None else temperature,
             "max_tokens": max_tokens,
         }
         headers = {"Authorization": f"Bearer {self.api_key}"}

@@ -26,11 +26,17 @@ class Settings(BaseSettings):
     attacker_endpoint: str | None = None
     attacker_api_key: str = "EMPTY"
     attacker_model: str | None = None
+    attacker_force_temperature: float | None = None
 
     # Judge model
     judge_endpoint: str | None = None
     judge_api_key: str | None = None
     judge_model: str | None = None
+    # Some endpoints pin temperature (e.g. Kimi Code k3 requires 1).
+    judge_force_temperature: float | None = None
+
+    # Target overrides
+    target_force_temperature: float | None = None
 
     # Infrastructure
     runpod_api_key: str | None = None

@@ -50,13 +50,16 @@ def _build_components(
         raise RuntimeError(f"Live run missing settings: {', '.join(missing)} (set them or use --mock)")
 
     attacker = OpenAICompatProvider(
-        settings.attacker_endpoint, settings.attacker_model, settings.attacker_api_key
+        settings.attacker_endpoint, settings.attacker_model, settings.attacker_api_key,
+        force_temperature=settings.attacker_force_temperature,
     )
     target = OpenAICompatProvider(
-        settings.target_endpoint, settings.target_model, settings.target_api_key or "EMPTY"
+        settings.target_endpoint, settings.target_model, settings.target_api_key or "EMPTY",
+        force_temperature=settings.target_force_temperature,
     )
     judge = OpenAICompatProvider(
-        settings.judge_endpoint, settings.judge_model, settings.judge_api_key or "EMPTY"
+        settings.judge_endpoint, settings.judge_model, settings.judge_api_key or "EMPTY",
+        force_temperature=settings.judge_force_temperature,
     )
     return CrescendoAttacker(attacker), TargetCaller(target), LLMJudgeStack(judge)
 
