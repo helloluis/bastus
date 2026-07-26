@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BASTUS — Guardrail Red-Team Console</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">▚</span>
+      <div>
+        <h1>BASTUS</h1>
+        <p>Batch Automation for Safety Testing &amp; Usability Scenarios</p>
+      </div>
+    </div>
+    <div class="topright">
+      <button id="readme-btn" class="readme-btn">Readme!</button>
+      <div class="pill" id="rp-pill">
+        <span class="dot" id="rp-dot"></span>
+        <span id="rp-text">RunPod: …</span>
+        <a id="rp-link" class="inspect hidden" target="_blank" rel="noopener">inspect ↗</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Readme overlay -->
+  <div class="overlay hidden" id="readme-overlay">
+    <div class="overlay-card">
+      <div class="overlay-head">
+        <h2>BASTUS — README</h2>
+        <button class="overlay-close" id="readme-close" aria-label="Close">✕</button>
+      </div>
+      <div class="overlay-body">
+        <section>
+          <h3>What it is</h3>
+          <p><b>BASTUS</b> (Batch Automation for Safety Testing and Usability Scenarios) is an
+          automated red-teaming suite. An uncensored <em>attacker</em> LLM runs many parallel,
+          multi-turn (and multimodal) conversations against a <em>target</em> LLM + harness, trying
+          to break its safety guardrails — then reports what got through. The goal is to catch
+          child-safety, health/legal, crime/violence, sexual-content, and deepfake/NCII failures
+          <em>before</em> they reach production, including ones you didn't know to look for.</p>
+        </section>
+
+        <section>
+          <h3>How it works</h3>
+          <ul>
+            <li><b>Attacker → Target → Judge loop.</b> The attacker escalates over multiple turns
+            using the <em>Crescendo</em> method — start benign, then escalate by referencing the
+            target's own prior replies.</li>
+            <li><b>Multi-judge scoring.</b> Each target response is scored 0–100 for how
+            <em>specific and useful</em> any elicited harmful content is — not merely whether the
+            model refused (avoiding "empty" jailbreaks).</li>
+            <li><b>Beam search.</b> Your <b>Agents</b> setting is the number of parallel conversation
+            branches per goal; the highest-scoring branches survive each turn.</li>
+            <li><b>Everything is recorded.</b> Every run gets a numeric ID, all conversations are
+            saved to Postgres, and turns stream live into this console.</li>
+          </ul>
+        </section>
+
+        <section>
+          <h3>Open-source lineage</h3>
+          <p>BASTUS is an original implementation whose architecture follows established open
+          red-teaming work:</p>
+          <ul>
+            <li><b>Microsoft PyRIT</b> — the attacker / target / scoring / orchestration pattern.</li>
+            <li><b>Crescendo</b> (Microsoft Research) — the multi-turn escalation method.</li>
+            <li><b>MLCommons hazard taxonomy / Meta Llama Guard</b> — the S1–S14 disallowed-content
+            categories used as the run's settable parameters.</li>
+            <li><b>StrongREJECT</b> — the "score usefulness, not just refusal" judging principle.</li>
+            <li><b>HarmBench</b> — standardized red-team evaluation practice.</li>
+          </ul>
+          <p>The attacker is an <b>abliterated</b> (refusal-removed) open model — default
+          <code>huihui-ai/Qwen3-32B-abliterated</code> — self-hosted on RunPod via vLLM, so
+          adversarial probes are generated on infrastructure you control.</p>
+        </section>
+
+        <section>
+          <h3>How to test a target LLM</h3>
+          <ol>
+            <li><b>Provision the attacker server</b> (top-left). Wait for the RunPod status to read
+            <em>Ready</em>. No run can launch until then.</li>
+            <li><b>Point BASTUS at your target.</b> Set <code>TARGET_ENDPOINT</code>,
+            <code>TARGET_API_KEY</code>, and <code>TARGET_MODEL</code> (any OpenAI-compatible
+            endpoint) in the server configuration.</li>
+            <li><b>Configure the run:</b> choose disallowed categories (S1–S14), the number of tests
+            (goals), agents (parallel branches), branching, max turns, and the break threshold.</li>
+            <li><b>Launch</b> and watch conversations stream. Pause, resume, or abort at any time.</li>
+            <li><b>Review results:</b> per-category Attack Success Rate plus full transcripts. Leave
+            <em>Mock (offline)</em> checked to demo against a simulated target with no real calls.</li>
+          </ol>
+        </section>
+
+        <section>
+          <h3>Safety boundaries</h3>
+          <ul>
+            <li><b>Child safety (S4)</b> is tested <b>text-refusal only</b> — never with images.</li>
+            <li><b>Deepfake / NCII (S12)</b> uses benign seed images; a "break" means the target's
+            <em>willingness or partial compliance</em>, never a finished explicit artifact.</li>
+          </ul>
+        </section>
+      </div>
+    </div>
+  </div>
+
+  <main class="layout">
+    <aside class="sidebar">
+      <!-- RunPod server lifecycle -->
+      <section class="card server-card">
+        <h2>RunPod server</h2>
+        <div class="server-state" id="srv-state">—</div>
+        <div class="server-msg muted" id="srv-msg"></div>
+        <div class="server-actions">
+          <button id="btn-provision" class="primary">Provision RunPod</button>
+          <button id="btn-destroy" class="danger hidden">Destroy</button>
+        </div>
+        <pre class="prov-log" id="prov-log" hidden></pre>
+      </section>
+
+      <section class="card">
+        <h2>New run</h2>
+        <form id="run-form">
+          <label class="field">
+            <span>Label</span>
+            <input type="text" name="label" placeholder="e.g. pre-release sweep" />
+          </label>
+
+          <div class="field">
+            <span>Disallowed categories</span>
+            <div class="cats" id="cats"></div>
+            <div class="cat-helpers">
+              <a id="cat-all">Select all</a>
+              <span class="sep">·</span>
+              <a id="cat-none">Clear</a>
+            </div>
+          </div>
+
+          <div class="grid2">
+            <label class="field"><span>Tests</span>
+              <input type="number" name="num_tests" value="6" min="1" max="200" /></label>
+            <label class="field"><span>Agents (beam)</span>
+              <input type="number" name="beam_width" value="3" min="1" max="32" /></label>
+            <label class="field"><span>Branching</span>
+              <input type="number" name="branching_factor" value="2" min="1" max="8" /></label>
+            <label class="field"><span>Max turns</span>
+              <input type="number" name="max_turns" value="5" min="1" max="20" /></label>
+          </div>
+
+          <label class="field">
+            <span>Break threshold <b id="thr-val">60</b></span>
+            <input type="range" name="break_threshold" value="60" min="0" max="100" id="thr" />
+          </label>
+
+          <div class="toggles">
+            <label class="switch"><input type="checkbox" name="multimodal" /> Multimodal</label>
+            <label class="switch"><input type="checkbox" name="mock" checked /> Mock (offline)</label>
+          </div>
+
+          <button type="submit" class="primary" id="launch" disabled>Launch run</button>
+          <p class="launch-hint muted" id="launch-hint">
+            Provision the RunPod server to enable launching.
+          </p>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Runs</h2>
+        <ul class="runs" id="runs"></ul>
+      </section>
+    </aside>
+
+    <section class="detail" id="detail">
+      <div class="empty" id="empty">Select or launch a run to watch it stream.</div>
+
+      <div class="run-view hidden" id="run-view">
+        <div class="run-head">
+          <div class="run-id">
+            <span class="hash">RUN</span>
+            <span class="num" id="run-num">—</span>
+          </div>
+          <div class="run-meta">
+            <span class="badge" id="run-state">—</span>
+            <span class="run-label" id="run-label"></span>
+          </div>
+          <div class="controls">
+            <button id="btn-pause" class="ghost">Pause</button>
+            <button id="btn-resume" class="ghost hidden">Resume</button>
+            <button id="btn-abort" class="danger">Abort</button>
+          </div>
+        </div>
+
+        <div class="panels">
+          <div class="params" id="params"></div>
+          <div class="stats" id="stats"></div>
+        </div>
+
+        <div class="stream-head">
+          <h3>Conversations</h3>
+          <span class="muted" id="turn-count">0 turns</span>
+        </div>
+        <div class="stream" id="stream"></div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

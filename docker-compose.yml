@@ -1,0 +1,55 @@
+# BASTUS control plane: Postgres + app, with optional Caddy TLS front (profile: tls).
+#
+#   docker compose up -d --build                 # app on :8000, front it yourself
+#   docker compose --profile tls up -d --build   # + Caddy TLS for bastus.b11.dev
+#
+# Secrets (target/attacker/runpod keys) are read from .env.local via env_file.
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: bastus
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-bastus}
+      POSTGRES_DB: bastus
+    volumes:
+      - bastus_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bastus"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: .
+    env_file:
+      - path: .env.local
+        required: false
+    environment:
+      DATABASE_URL: postgresql+asyncpg://bastus:${POSTGRES_PASSWORD:-bastus}@db:5432/bastus
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${BASTUS_PORT:-8000}:8000"
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2
+    profiles: ["tls"]
+    depends_on:
+      - app
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+
+volumes:
+  bastus_pg:
+  caddy_data:
+  caddy_config:

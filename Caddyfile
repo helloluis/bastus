@@ -1,0 +1,5 @@
+# Auto-HTTPS + WebSocket-aware reverse proxy for the BASTUS control plane.
+# Caddy handles the WS upgrade transparently, so live streaming works over wss://.
+bastus.b11.dev {
+    reverse_proxy app:8000
+}
