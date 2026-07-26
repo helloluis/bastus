@@ -121,6 +121,30 @@ class ServerManager:
     async def _publish(self) -> None:
         await self.broadcaster.publish(SERVER_CHANNEL, {"type": "server_state", "data": self.status.as_dict()})
 
+    async def reconcile(self) -> None:
+        """On startup, re-attach to an existing healthy pod so a restart doesn't orphan it."""
+        if not hasattr(self.provider, "reconcile"):
+            return
+        try:
+            info = await self.provider.reconcile()
+        except Exception as exc:  # noqa: BLE001
+            self.status.log.append(f"[reconcile] error: {exc}")
+            return
+        if info:
+            self.status = ServerStatus(
+                state=ServerState.READY,
+                message="Re-attached to existing pod after restart.",
+                pod_id=info["pod_id"],
+                attacker_endpoint=info["attacker_endpoint"],
+                console_url=info["console_url"],
+                model=info.get("model"),
+                gpu=info.get("gpu"),
+            )
+            self.status.log.append("[ready] Re-attached to existing pod after restart.")
+            self.mark_activity()
+            self._start_watchdog()
+            await self._publish()
+
     def mark_activity(self) -> None:
         try:
             self._last_activity = asyncio.get_running_loop().time()

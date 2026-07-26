@@ -43,6 +43,13 @@ class RunPodClient:
             raise RunPodCapacityError(body, resp.status_code)
         raise RunPodError(f"create_pod failed ({resp.status_code}): {body}", resp.status_code)
 
+    async def list_pods(self) -> list[dict]:
+        resp = await self._client.get("/pods")
+        if resp.status_code // 100 != 2:
+            raise RunPodError(f"list_pods failed ({resp.status_code}): {resp.text}", resp.status_code)
+        data = resp.json()
+        return data if isinstance(data, list) else data.get("data", [])
+
     async def get_pod(self, pod_id: str) -> dict:
         resp = await self._client.get(f"/pods/{pod_id}")
         if resp.status_code // 100 != 2:

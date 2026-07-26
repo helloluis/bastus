@@ -162,3 +162,33 @@ class RealRunpodProvider:
     async def destroy(self, pod_id: str | None) -> None:
         if pod_id:
             await self.client.delete_pod(pod_id)
+
+    async def reconcile(self) -> dict | None:
+        """After a control-plane restart, re-attach to a healthy attacker pod if one
+        exists; destroy any other/unhealthy bastus-attacker pods (orphans)."""
+        pods = [p for p in await self.client.list_pods() if p.get("name") == "bastus-attacker"]
+        if not pods:
+            return None
+        for p in pods:
+            base = proxy_url(p["id"], self.config.port)
+            if await self.health_check(base):
+                for other in pods:  # kill leftovers
+                    if other["id"] != p["id"]:
+                        try:
+                            await self.client.delete_pod(other["id"])
+                        except Exception:
+                            pass
+                return {
+                    "pod_id": p["id"],
+                    "attacker_endpoint": f"{base}/v1",
+                    "console_url": f"https://www.runpod.io/console/pods/{p['id']}",
+                    "model": self.config.model,
+                    "gpu": p.get("gpuTypeId"),
+                }
+        # None healthy → orphans from an interrupted provision; clean them up.
+        for p in pods:
+            try:
+                await self.client.delete_pod(p["id"])
+            except Exception:
+                pass
+        return None

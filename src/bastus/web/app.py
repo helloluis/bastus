@@ -31,6 +31,7 @@ async def lifespan(app: FastAPI):
     app.state.broadcaster = Broadcaster()
     app.state.server_mgr = ServerManager(app.state.broadcaster)
     app.state.manager = RunManager(db, app.state.broadcaster, app.state.server_mgr)
+    await app.state.server_mgr.reconcile()  # re-attach to a pod that survived a restart
     yield
     await db.dispose()
 

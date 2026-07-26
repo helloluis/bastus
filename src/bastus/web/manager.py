@@ -49,7 +49,8 @@ class RunManager:
         )
         if is_live:
             settings.attacker_endpoint = self.server_mgr.status.attacker_endpoint
-            settings.attacker_model = ATTACKER_MODEL
+            # Use the model the pod is actually serving (may be an AWQ repo id).
+            settings.attacker_model = self.server_mgr.status.model or ATTACKER_MODEL
             settings.attacker_api_key = "EMPTY"
             self.server_mgr.run_started()
         try:

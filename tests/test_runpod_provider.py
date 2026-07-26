@@ -10,10 +10,11 @@ from bastus.runpod.provider import ProvisionConfig, RealRunpodProvider
 
 
 class FakeClient:
-    def __init__(self, unavailable=()) -> None:
+    def __init__(self, unavailable=(), pods=None) -> None:
         self.unavailable = set(unavailable)
         self.created: list[dict] = []
         self.deleted: list[str] = []
+        self._pods = list(pods or [])
 
     async def create_pod(self, payload: dict) -> dict:
         gpu = payload["gpuTypeIds"][0]
@@ -21,6 +22,9 @@ class FakeClient:
             raise RunPodCapacityError("no instances currently available")
         self.created.append(payload)
         return {"id": "pod123"}
+
+    async def list_pods(self) -> list[dict]:
+        return [p for p in self._pods if p["id"] not in self.deleted]
 
     async def delete_pod(self, pod_id: str) -> None:
         self.deleted.append(pod_id)
@@ -101,6 +105,40 @@ async def test_destroy_deletes_pod():
     prov = RealRunpodProvider(client, ProvisionConfig(), health_check=_always_ready)
     await prov.destroy("podX")
     assert client.deleted == ["podX"]
+
+
+async def test_reconcile_reattaches_healthy_pod_and_kills_others():
+    client = FakeClient(pods=[
+        {"id": "healthy1", "name": "bastus-attacker"},
+        {"id": "orphan2", "name": "bastus-attacker"},
+        {"id": "other", "name": "something-else"},
+    ])
+
+    async def health(base):  # only healthy1 is up
+        return "healthy1" in base
+
+    prov = RealRunpodProvider(client, ProvisionConfig(), health_check=health)
+    info = await prov.reconcile()
+    assert info["pod_id"] == "healthy1"
+    assert info["attacker_endpoint"] == "https://healthy1-8000.proxy.runpod.net/v1"
+    assert "orphan2" in client.deleted  # leftover attacker pod cleaned up
+    assert "other" not in client.deleted  # unrelated pod untouched
+
+
+async def test_reconcile_destroys_all_when_none_healthy():
+    client = FakeClient(pods=[{"id": "dead1", "name": "bastus-attacker"}])
+
+    async def never(base):
+        return False
+
+    prov = RealRunpodProvider(client, ProvisionConfig(), health_check=never)
+    assert await prov.reconcile() is None
+    assert "dead1" in client.deleted
+
+
+async def test_reconcile_none_when_no_pods():
+    prov = RealRunpodProvider(FakeClient(pods=[]), ProvisionConfig(), health_check=_always_ready)
+    assert await prov.reconcile() is None
 
 
 def test_pod_payload_shape():
