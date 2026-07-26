@@ -351,9 +351,20 @@ function renderStats(detail) {
   for (const [code, st] of Object.entries(detail.per_category || {})) {
     const chip = el("span", "chip " + (st.broken ? "broken" : "held"),
       `${code} ${st.broken}/${st.tested}`);
+    chip.title = `Jump to ${code} conversations`;
+    chip.addEventListener("click", () => jumpToCategory(code));
     chips.append(chip);
   }
   s.append(chips);
+}
+
+function jumpToCategory(code) {
+  const node = document.querySelector(`#stream .goal[data-cat="${code}"]`);
+  if (!node) return;
+  node.scrollIntoView({ behavior: "smooth", block: "start" });
+  node.classList.remove("jump-flash");
+  void node.offsetWidth; // restart the animation if re-clicked
+  node.classList.add("jump-flash");
 }
 
 async function refreshStats() {
@@ -375,6 +386,7 @@ function setStateBadge(st) {
 function ensureGoal(key, category, objective) {
   if (state.goals.has(key)) return state.goals.get(key);
   const node = el("div", "goal");
+  node.dataset.cat = category;
   const head = el("div", "goal-head");
   head.append(el("span", "gcat", category));
   head.append(el("span", "gobj", objective || ""));
