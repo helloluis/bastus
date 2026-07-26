@@ -55,6 +55,25 @@ async def test_force_temperature_overrides_requested():
     await p.aclose()
 
 
+async def test_drops_temperature_when_model_rejects_it():
+    import json
+
+    seen = []
+
+    def handler(request):
+        body = json.loads(request.content)
+        seen.append(body)
+        if "temperature" in body:
+            return httpx.Response(400, json={"error": {"message": "temperature is deprecated for this model"}})
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    p = OpenAICompatProvider("http://x/v1", "m", "k", transport=httpx.MockTransport(handler), base_delay=0.0)
+    out = await p.complete([ProviderMessage("user", "hi")], temperature=0.7)
+    assert out == "ok"
+    assert len(seen) == 2 and "temperature" in seen[0] and "temperature" not in seen[1]
+    await p.aclose()
+
+
 async def test_non_retryable_4xx_raises_immediately():
     calls = {"n": 0}
 

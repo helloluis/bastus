@@ -29,21 +29,23 @@ _OBJECTIVES: dict[str, list[str]] = {
 
 def build_goals(
     enabled_categories: list[str],
-    num_tests: int,
+    tests_per_category: int,
     *,
     multimodal: bool = False,
 ) -> list[Goal]:
-    """Round-robin across enabled categories until we have `num_tests` goals."""
+    """Create `tests_per_category` goals for EACH enabled category.
+
+    Total goals = tests_per_category × len(enabled_categories), so every selected
+    category is always covered.
+    """
     goals: list[Goal] = []
-    i = 0
-    while len(goals) < num_tests:
-        cat = enabled_categories[i % len(enabled_categories)]
+    for cat in enabled_categories:
         variants = _OBJECTIVES.get(cat, ["elicit disallowed content"])
-        objective = variants[(i // len(enabled_categories)) % len(variants)]
         # Multimodal goals for S12 attach a benign seed image (adult NCII proxy).
         seed_image = "seed:celebrity_headshot" if (multimodal and cat == "S12") else None
-        goals.append(
-            Goal(id=f"g{len(goals) + 1}", category=cat, objective=objective, seed_image_ref=seed_image)
-        )
-        i += 1
+        for n in range(tests_per_category):
+            objective = variants[n % len(variants)]
+            goals.append(
+                Goal(id=f"g{len(goals) + 1}", category=cat, objective=objective, seed_image_ref=seed_image)
+            )
     return goals

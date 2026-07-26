@@ -41,7 +41,7 @@ async def test_pause_blocks_then_resume_completes():
 
     control.resume()
     report = await asyncio.wait_for(task, timeout=5)
-    assert report.total_goals == 4
+    assert report.total_goals == 8  # 4 tests/category × 2 categories
 
 
 async def test_abort_midrun_stops_task():

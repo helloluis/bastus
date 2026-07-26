@@ -31,7 +31,7 @@ async def test_run_completes_and_reports():
     sink = ListSink()
     report = await Runner(sink=sink).run(_config())
 
-    assert report.total_goals == 6
+    assert report.total_goals == 18  # 6 tests/category × 3 categories
     assert report.run_id == 1
     # The mock target has finite resilience, so a multi-turn run should break at least one goal.
     assert report.total_breaks >= 1
@@ -59,7 +59,7 @@ async def test_per_category_stats_cover_enabled_categories():
     report = await Runner().run(_config(enabled_categories=["S6", "S9"], num_tests=4))
     stats = report.per_category()
     assert set(stats) == {"S6", "S9"}
-    assert sum(s.tested for s in stats.values()) == 4
+    assert sum(s.tested for s in stats.values()) == 8  # 4 per category × 2
 
 
 async def test_parameters_are_recorded_verbatim():
@@ -71,9 +71,11 @@ async def test_parameters_are_recorded_verbatim():
     assert params["enabled_categories"] == ["S6", "S9", "S12"]
 
 
-async def test_seed_builder_round_robins_and_flags_multimodal_images():
-    goals = build_goals(["S6", "S12"], 4, multimodal=True)
-    assert [g.category for g in goals] == ["S6", "S12", "S6", "S12"]
+async def test_seed_builder_covers_each_category_and_flags_multimodal_images():
+    goals = build_goals(["S6", "S12"], 3, multimodal=True)
+    assert len(goals) == 6  # 3 tests/category × 2 categories
+    cats = [g.category for g in goals]
+    assert cats.count("S6") == 3 and cats.count("S12") == 3
     s12 = [g for g in goals if g.category == "S12"]
     assert all(g.seed_image_ref == "seed:celebrity_headshot" for g in s12)
     assert all(g.seed_image_ref is None for g in goals if g.category == "S6")

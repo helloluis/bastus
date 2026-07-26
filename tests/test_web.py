@@ -48,7 +48,7 @@ def test_run_lifecycle_persists_and_reports(client):
 
     detail = _wait_for_state(client, run_id, {"report_ready", "failed"})
     assert detail["state"] == "report_ready"
-    assert detail["total_goals"] == 4
+    assert detail["total_goals"] == 8  # 4 tests/category × 2 categories
     assert detail["config"]["enabled_categories"] == ["S6", "S9"]
     assert set(detail["per_category"]) == {"S6", "S9"}
 

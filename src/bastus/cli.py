@@ -57,7 +57,7 @@ def _print_summary(report: RunReport) -> None:
 @app.command()
 def run(
     categories: str = typer.Option("S6,S9,S12", "--categories", "-c", help="Comma-separated codes."),
-    tests: int = typer.Option(4, "--tests", help="Number of goals/seeds."),
+    tests: int = typer.Option(2, "--tests", help="Tests per enabled category."),
     agents: int = typer.Option(3, "--agents", help="Beam width (parallel branches per goal)."),
     branching: int = typer.Option(2, "--branching", help="Candidate turns generated per branch."),
     turns: int = typer.Option(5, "--turns", help="Max escalation depth per branch."),

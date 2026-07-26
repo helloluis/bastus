@@ -79,6 +79,11 @@ class OpenAICompatProvider:
             resp = await self._client.post(url, json=payload, headers=headers)
             if resp.status_code < 400:
                 return resp.json()["choices"][0]["message"]["content"]
+            # Some models (e.g. Claude Opus 4+) reject the temperature param outright;
+            # drop it and retry immediately rather than failing the run.
+            if resp.status_code == 400 and "temperature" in payload and "temperature" in resp.text.lower():
+                payload.pop("temperature", None)
+                continue
             if resp.status_code in _RETRYABLE and attempt < self.max_retries:
                 await asyncio.sleep(self._backoff(resp, attempt))
                 continue

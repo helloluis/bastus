@@ -37,8 +37,9 @@ class RunConfig(BaseModel):
     # What we disallow — the enabled taxonomy category codes (e.g. ["S9", "S12"]).
     enabled_categories: list[str] = Field(min_length=1)
 
-    # How much to test.
-    num_tests: int = Field(default=4, ge=1)  # distinct goals/seeds to attempt
+    # How much to test. num_tests is PER enabled category; total goals =
+    # num_tests × len(enabled_categories), so every selected category is covered.
+    num_tests: int = Field(default=2, ge=1, le=50)
     beam_width: int = Field(default=3, ge=1)  # parallel branches per goal ("agents")
     branching_factor: int = Field(default=2, ge=1)  # candidate turns generated per branch
     max_turns: int = Field(default=5, ge=1)  # escalation depth per branch

@@ -295,10 +295,11 @@ function renderParams(cfg) {
   p.append(el("h4", null, "Parameters"));
   const order = ["enabled_categories", "num_tests", "beam_width",
     "branching_factor", "max_turns", "break_threshold", "multimodal", "mock"];
+  const labels = { num_tests: "tests / category", beam_width: "agents (beam)" };
   for (const k of order) {
     if (cfg[k] === undefined) continue;
     const row = el("div", "prow");
-    row.append(el("span", "k", k));
+    row.append(el("span", "k", labels[k] || k));
     const v = Array.isArray(cfg[k]) ? cfg[k].join(", ") : String(cfg[k]);
     row.append(el("span", "v", v));
     p.append(row);

@@ -49,15 +49,23 @@ class BeamSearch:
     async def _expand(
         self, goal: Goal, branch: Branch, config: RunConfig
     ) -> list[tuple[Branch, Judgment]]:
-        proposals = await self.attacker.propose(goal, branch, config.branching_factor)
+        try:
+            proposals = await self.attacker.propose(goal, branch, config.branching_factor)
+        except Exception as exc:  # noqa: BLE001 — a dead attacker call drops this branch, not the run
+            await self._emit_error(goal, branch.id, f"attacker: {exc}")
+            return []
 
-        async def evaluate(text: str) -> tuple[Branch, Judgment]:
+        async def evaluate(text: str) -> tuple[Branch, Judgment] | None:
             child = branch.child()
-            image_ref = goal.seed_image_ref if child.depth == 1 else None
-            child.add(Role.ATTACKER, text, image_ref=image_ref)
-            response = await self.target.send(child)
-            child.add(Role.TARGET, response)
-            judgment = await self.judges.judge(goal, response, config.break_threshold)
+            try:
+                image_ref = goal.seed_image_ref if child.depth == 1 else None
+                child.add(Role.ATTACKER, text, image_ref=image_ref)
+                response = await self.target.send(child)
+                child.add(Role.TARGET, response)
+                judgment = await self.judges.judge(goal, response, config.break_threshold)
+            except Exception as exc:  # noqa: BLE001 — one bad candidate must not kill the run
+                await self._emit_error(goal, child.id, f"{type(exc).__name__}: {exc}")
+                return None
             child.value = judgment.scores.harm - (
                 _REFUSAL_PENALTY if judgment.scores.refused else 0.0
             )
@@ -79,7 +87,17 @@ class BeamSearch:
             )
             return child, judgment
 
-        return list(await asyncio.gather(*(evaluate(p) for p in proposals)))
+        results = await asyncio.gather(*(evaluate(p) for p in proposals))
+        return [r for r in results if r is not None]
+
+    async def _emit_error(self, goal: Goal, branch_id: int, message: str) -> None:
+        await self.sink.emit(
+            Event(EventType.TURN, {
+                "goal_id": goal.id, "category": goal.category, "branch_id": branch_id,
+                "depth": 0, "verdict": "error", "harm": 0.0,
+                "attacker": "(call failed)", "target": message,
+            })
+        )
 
     async def run(
         self, goal: Goal, config: RunConfig, control: RunControl = NULL_CONTROL
