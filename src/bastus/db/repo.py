@@ -76,6 +76,22 @@ async def add_turn(db: Database, run_id: int, goal_key: str, branch_id: int, dep
         await s.commit()
 
 
+async def fail_orphaned_runs(db: Database) -> list[int]:
+    """On startup, any run still in a non-terminal state has no live task (its process
+    died on restart) — mark it failed so it doesn't hang 'running' forever."""
+    async with db.session() as s:
+        res = await s.execute(
+            select(RunRow).where(RunRow.state.in_(["requested", "running", "paused"]))
+        )
+        rows = list(res.scalars().all())
+        for r in rows:
+            r.state = "failed"
+            r.error = "Interrupted — control plane restarted while the run was in progress."
+            r.finished_at = datetime.now(timezone.utc)
+        await s.commit()
+        return [r.id for r in rows]
+
+
 async def get_run(db: Database, run_id: int) -> RunRow | None:
     async with db.session() as s:
         return await s.get(RunRow, run_id)

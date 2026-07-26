@@ -27,6 +27,7 @@ STATIC_DIR = Path(__file__).parent / "static"
 async def lifespan(app: FastAPI):
     db = get_database()
     await db.create_all()
+    await repo.fail_orphaned_runs(db)  # a restart kills in-flight run tasks; don't leave them "running"
     app.state.db = db
     app.state.broadcaster = Broadcaster()
     app.state.server_mgr = ServerManager(app.state.broadcaster)
