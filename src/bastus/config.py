@@ -56,3 +56,17 @@ class Settings(BaseSettings):
 
 def load_settings() -> Settings:
     return Settings()
+
+
+def target_descriptor(settings: Settings) -> dict:
+    """A display-ready description of the target a live run is pointed at."""
+    from urllib.parse import urlparse
+
+    kind = (settings.target_kind or "openai").lower()
+    if kind == "smartai":
+        host = urlparse(settings.smartai_base or "").netloc or "smart-ai"
+        return {"kind": "smartai", "label": f"Smart AI · {host}",
+                "endpoint": settings.smartai_base, "model": "Amazon Nova Pro (Bedrock)"}
+    host = urlparse(settings.target_endpoint or "").netloc or (settings.target_endpoint or "unknown")
+    return {"kind": "openai", "label": f"{host} · {settings.target_model or '?'}",
+            "endpoint": settings.target_endpoint, "model": settings.target_model}

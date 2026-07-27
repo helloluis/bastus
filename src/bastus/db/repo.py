@@ -24,6 +24,15 @@ async def create_run(db: Database, config: RunConfig) -> int:
         return row.id
 
 
+async def set_run_target(db: Database, run_id: int, target: dict) -> None:
+    """Record which target this run hit, inside the config snapshot."""
+    async with db.session() as s:
+        row = await s.get(RunRow, run_id)
+        if row:
+            row.config = {**(row.config or {}), "target": target}
+            await s.commit()
+
+
 async def set_state(db: Database, run_id: int, state: str, error: str = "") -> None:
     async with db.session() as s:
         row = await s.get(RunRow, run_id)

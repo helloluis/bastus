@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import asyncio
 
-from bastus.config import load_settings
+from bastus.config import load_settings, target_descriptor
 from bastus.db import repo
 from bastus.db.session import Database
 from bastus.engine.control import RunAborted, RunControl
@@ -43,6 +43,10 @@ class RunManager:
     async def start(self, config: RunConfig) -> int:
         run_id = await repo.create_run(self.db, config)
         config.run_id = run_id
+        # Record which target this run hits, so the report shows it.
+        target = ({"kind": "mock", "label": "Mock (simulated target)"}
+                  if config.mock else target_descriptor(load_settings()))
+        await repo.set_run_target(self.db, run_id, target)
         control = RunControl()
         self.controls[run_id] = control
         self.tasks[run_id] = asyncio.create_task(self._execute(run_id, config, control))

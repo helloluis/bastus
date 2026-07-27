@@ -74,6 +74,18 @@ async def test_judge_treats_blocked_as_refusal_without_calling_llm():
     assert prov.called is False  # governance block short-circuits the judge call
 
 
+def test_target_descriptor_labels():
+    from bastus.config import Settings, target_descriptor
+
+    d = target_descriptor(Settings(target_kind="openai",
+                                   target_endpoint="https://api.x.ai/v1", target_model="grok-4.5"))
+    assert d["kind"] == "openai" and "api.x.ai" in d["label"] and "grok-4.5" in d["label"]
+
+    d2 = target_descriptor(Settings(target_kind="smartai",
+                                    smartai_base="https://nmblr.xyz/base-smart/api-test"))
+    assert d2["kind"] == "smartai" and "nmblr.xyz" in d2["label"]
+
+
 async def test_judge_scores_text_when_not_blocked():
     prov = _RecordingJudgeProvider()
     judge = LLMJudgeStack(prov)

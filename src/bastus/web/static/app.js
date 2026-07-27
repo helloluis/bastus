@@ -327,6 +327,17 @@ function renderParams(cfg) {
     p.append(row);
   }
   $("#run-label").textContent = cfg.label || "";
+
+  const t = cfg.target;
+  const tEl = $("#run-target");
+  if (t && t.label) {
+    tEl.textContent = "TARGET  " + t.label;
+    tEl.title = t.endpoint ? `${t.endpoint}${t.model ? " · " + t.model : ""}` : t.label;
+    tEl.classList.remove("unknown");
+  } else {
+    tEl.textContent = "TARGET  not recorded";
+    tEl.classList.add("unknown");
+  }
 }
 
 function renderStats(detail) {
