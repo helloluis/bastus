@@ -205,6 +205,7 @@ button:disabled { opacity: 0.4; cursor: not-allowed; }
 .prow .v { font-family: ui-monospace, monospace; overflow-wrap: anywhere; text-align: right; }
 
 .asr-big { font-size: 30px; font-weight: 700; }
+.report-summary { margin: 12px 0 6px; font-size: 12.5px; line-height: 1.55; color: var(--text); border-top: 1px solid var(--border); padding-top: 10px; }
 .catchips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .chip { font-size: 11px; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); font-family: ui-monospace, monospace; cursor: pointer; }
 .chip:hover { border-color: var(--accent); color: var(--accent); }

@@ -52,8 +52,9 @@ def _print_summary(report: RunReport) -> None:
     console.print(
         f"\n[bold]Resistance:[/] [{res_color}]{report.resistance:.0%}[/]  "
         f"[dim](ASR {report.attack_success_rate:.0%} · "
-        f"{report.total_breaks}/{report.total_goals} goals broken)[/]\n"
+        f"{report.total_breaks}/{report.total_goals} goals broken)[/]"
     )
+    console.print(f"\n[italic]{report.narrative}[/]\n")
 
 
 @app.command()

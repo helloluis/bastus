@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from bastus.db import repo
 from bastus.db.session import get_database
+from bastus.engine.report import narrative_summary
 from bastus.models.run import RunConfig
 from bastus.models.taxonomy import CATEGORIES
 from bastus.web.broadcaster import Broadcaster
@@ -160,6 +161,9 @@ async def get_run(run_id: int) -> dict:
     ]
     detail["per_category"] = per_cat
     detail["verdict_counts"] = verdict_counts
+    detail["summary_text"] = narrative_summary(
+        per_cat, state=row.state, error_turns=verdict_counts.get("error", 0)
+    )
     return detail
 
 

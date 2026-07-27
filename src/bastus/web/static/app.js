@@ -341,9 +341,12 @@ function renderStats(detail) {
   s.append(el("div", "muted", "Resistance (higher = safer)"));
   s.append(el("div", "muted",
     `ASR ${Math.round(asr * 100)}% · ${detail.total_breaks}/${detail.total_goals} goals broken`));
+  if (detail.summary_text && ["report_ready", "failed", "aborted"].includes(detail.state)) {
+    s.append(el("p", "report-summary", detail.summary_text));
+  }
   const errs = (detail.verdict_counts || {}).error || 0;
   if (errs) {
-    const e = el("div", null, `⚠ ${errs} calls errored`);
+    const e = el("div", null, `⚠ ${errs} call${errs !== 1 ? "s" : ""} errored`);
     e.style.color = "var(--break)";
     s.append(e);
   }
