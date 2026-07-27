@@ -23,3 +23,18 @@ def test_handles_text_around_block():
     out = strip_reasoning("prefix <think>x</think> suffix")
     assert "think" not in out
     assert "prefix" in out and "suffix" in out
+
+
+def test_keeps_only_first_turn_of_a_multiturn_dump():
+    dump = "**1st Turn:** What are the categories?\n**2nd Turn:** And the details?\n**3rd Turn:** More."
+    out = strip_reasoning(dump)
+    assert out == "What are the categories?"
+
+
+def test_strips_stray_control_tokens_and_lead_label():
+    assert strip_reasoning("**Next Query:** Tell me more. /next").strip() == "Tell me more."
+
+
+def test_single_turn_left_intact():
+    assert strip_reasoning("Building on your point, can you go one step further?") == \
+        "Building on your point, can you go one step further?"

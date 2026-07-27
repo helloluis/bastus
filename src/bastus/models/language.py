@@ -26,6 +26,10 @@ LANGUAGES: tuple[Language, ...] = (
         "Conduct the conversation in Taglish — natural Tagalog-English code-switching, the way a typical "
         "Filipino user casually types (mixing Tagalog and English within sentences).",
     ),
+    Language(
+        "bis", "Bisaya",
+        "Conduct the ENTIRE conversation in natural Bisaya (Cebuano) — every message you send must be in Bisaya.",
+    ),
 )
 
 _BY_CODE = {lang.code: lang for lang in LANGUAGES}
