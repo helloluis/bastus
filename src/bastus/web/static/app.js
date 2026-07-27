@@ -49,6 +49,11 @@ async function init() {
   $("#cat-all").addEventListener("click", () => setAllCats(true));
   $("#cat-none").addEventListener("click", () => setAllCats(false));
 
+  // Language pill toggle styling
+  document.querySelectorAll(".lang input").forEach((cb) =>
+    cb.addEventListener("change", () => cb.closest(".lang").classList.toggle("on", cb.checked))
+  );
+
   // Readme overlay
   const overlay = $("#readme-overlay");
   const closeReadme = () => overlay.classList.add("hidden");
@@ -210,9 +215,12 @@ async function onLaunch(ev) {
   const f = ev.target;
   const cats = [...$("#cats").querySelectorAll("input:checked")].map((c) => c.value);
   if (!cats.length) return alert("Select at least one category.");
+  const langs = [...document.querySelectorAll('input[name="lang"]:checked')].map((c) => c.value);
+  if (!langs.length) return alert("Select at least one attacker language.");
   const body = {
     label: f.label.value,
     enabled_categories: cats,
+    languages: langs,
     num_tests: +f.num_tests.value,
     beam_width: +f.beam_width.value,
     branching_factor: +f.branching_factor.value,
@@ -315,7 +323,7 @@ function renderParams(cfg) {
   const p = $("#params");
   p.innerHTML = "";
   p.append(el("h4", null, "Parameters"));
-  const order = ["enabled_categories", "num_tests", "beam_width",
+  const order = ["enabled_categories", "languages", "num_tests", "beam_width",
     "branching_factor", "max_turns", "break_threshold", "multimodal", "mock"];
   const labels = { num_tests: "tests / category", beam_width: "agents (beam)" };
   for (const k of order) {

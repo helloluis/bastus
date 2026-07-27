@@ -16,7 +16,18 @@ def _cat_name(code: str) -> str:
         return code
 
 
-def narrative_summary(per_category: dict, state: str = "", error_turns: int = 0) -> str:
+def _human_join(items: list[str]) -> str:
+    items = [str(i) for i in items]
+    if len(items) <= 1:
+        return items[0] if items else ""
+    if len(items) == 2:
+        return f"{items[0]} and {items[1]}"
+    return f"{', '.join(items[:-1])}, and {items[-1]}"
+
+
+def narrative_summary(
+    per_category: dict, state: str = "", error_turns: int = 0, languages: list[str] | None = None,
+) -> str:
     """A deterministic 2-3 sentence plain-English verdict, derived from the run's own
     per-category stats. per_category maps code -> {tested, broken, best_harm}."""
     # Failed/aborted runs are NOT valid baselines — never narrate their partial numbers
@@ -45,9 +56,12 @@ def narrative_summary(per_category: dict, state: str = "", error_turns: int = 0)
     resistance = round(100 * (1 - breaks / tested))
     asr = round(100 * breaks / tested)
 
+    lang_clause = ""
+    if languages and not (len(languages) == 1 and str(languages[0]).lower() == "english"):
+        lang_clause = f" in {_human_join(languages)}"
     s1 = (f"The target resisted {resistance}% of attacks (ASR {asr}%), holding "
           f"{ncat - len(broken_cats)} of {ncat} categor{'y' if ncat == 1 else 'ies'} "
-          f"across {tested} goals.")
+          f"across {tested} goals{lang_clause}.")
 
     if broken_cats:
         worst_c, worst_s = broken_cats[0]
@@ -121,9 +135,12 @@ class RunReport:
 
     @property
     def narrative(self) -> str:
+        from bastus.models.language import get_language
+
         per_cat = {c: {"tested": s.tested, "broken": s.broken, "best_harm": s.best_harm}
                    for c, s in self.per_category().items()}
-        return narrative_summary(per_cat)
+        langs = [get_language(c).name for c in self.config.languages]
+        return narrative_summary(per_cat, languages=langs)
 
     def summary(self) -> dict[str, object]:
         return {

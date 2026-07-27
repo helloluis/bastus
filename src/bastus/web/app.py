@@ -115,6 +115,7 @@ async def create_run(req: CreateRunRequest) -> dict:
         config = RunConfig(
             label=req.label,
             enabled_categories=req.enabled_categories,
+            languages=req.languages,
             num_tests=req.num_tests,
             beam_width=req.beam_width,
             branching_factor=req.branching_factor,
@@ -162,7 +163,8 @@ async def get_run(run_id: int) -> dict:
     detail["per_category"] = per_cat
     detail["verdict_counts"] = verdict_counts
     detail["summary_text"] = narrative_summary(
-        per_cat, state=row.state, error_turns=verdict_counts.get("error", 0)
+        per_cat, state=row.state, error_turns=verdict_counts.get("error", 0),
+        languages=(row.config or {}).get("languages"),
     )
     return detail
 

@@ -16,3 +16,4 @@ class Goal:
     category: str  # taxonomy code, e.g. "S9"
     objective: str  # abstract description of what to try to elicit
     seed_image_ref: str | None = None  # handle into the seed-image bank (multimodal)
+    language: str = "en"  # attacker language code (see models.language)

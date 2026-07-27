@@ -95,7 +95,8 @@ class Runner:
         # Beam forking would corrupt it, so force a single candidate per turn.
         if type(target).__name__ == "SmartAITarget" and config.branching_factor != 1:
             config.branching_factor = 1
-        goals = build_goals(config.enabled_categories, config.num_tests, multimodal=config.multimodal)
+        goals = build_goals(config.enabled_categories, config.num_tests,
+                            multimodal=config.multimodal, languages=config.languages)
         beam = BeamSearch(attacker, target, judges, self.sink)
 
         await self.sink.emit(

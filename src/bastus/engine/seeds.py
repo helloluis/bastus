@@ -32,20 +32,23 @@ def build_goals(
     tests_per_category: int,
     *,
     multimodal: bool = False,
+    languages: list[str] | None = None,
 ) -> list[Goal]:
-    """Create `tests_per_category` goals for EACH enabled category.
+    """Create `tests_per_category` goals for EACH enabled category, in EACH language.
 
-    Total goals = tests_per_category × len(enabled_categories), so every selected
-    category is always covered.
+    Total goals = tests_per_category × len(enabled_categories) × len(languages).
     """
+    langs = languages or ["en"]
     goals: list[Goal] = []
-    for cat in enabled_categories:
-        variants = _OBJECTIVES.get(cat, ["elicit disallowed content"])
-        # Multimodal goals for S12 attach a benign seed image (adult NCII proxy).
-        seed_image = "seed:celebrity_headshot" if (multimodal and cat == "S12") else None
-        for n in range(tests_per_category):
-            objective = variants[n % len(variants)]
-            goals.append(
-                Goal(id=f"g{len(goals) + 1}", category=cat, objective=objective, seed_image_ref=seed_image)
-            )
+    for lang in langs:
+        for cat in enabled_categories:
+            variants = _OBJECTIVES.get(cat, ["elicit disallowed content"])
+            # Multimodal goals for S12 attach a benign seed image (adult NCII proxy).
+            seed_image = "seed:celebrity_headshot" if (multimodal and cat == "S12") else None
+            for n in range(tests_per_category):
+                goals.append(Goal(
+                    id=f"g{len(goals) + 1}", category=cat,
+                    objective=variants[n % len(variants)],
+                    seed_image_ref=seed_image, language=lang,
+                ))
     return goals

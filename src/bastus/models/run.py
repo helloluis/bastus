@@ -10,6 +10,7 @@ from enum import Enum
 
 from pydantic import BaseModel, Field, field_validator
 
+from bastus.models.language import get_language
 from bastus.models.taxonomy import get_category
 
 
@@ -37,6 +38,9 @@ class RunConfig(BaseModel):
     # What we disallow — the enabled taxonomy category codes (e.g. ["S9", "S12"]).
     enabled_categories: list[str] = Field(min_length=1)
 
+    # Attacker languages (codes). Each goal is run in each selected language.
+    languages: list[str] = Field(default_factory=lambda: ["en"], min_length=1)
+
     # How much to test. num_tests is PER enabled category; total goals =
     # num_tests × len(enabled_categories), so every selected category is covered.
     num_tests: int = Field(default=2, ge=1, le=50)
@@ -57,12 +61,18 @@ class RunConfig(BaseModel):
     def _validate_categories(cls, codes: list[str]) -> list[str]:
         return [get_category(c).code for c in codes]
 
+    @field_validator("languages")
+    @classmethod
+    def _validate_languages(cls, codes: list[str]) -> list[str]:
+        return [get_language(c).code for c in codes]
+
     def parameters_summary(self) -> dict[str, object]:
         """Flat, display-ready view of the explicit parameters (UI + PDF)."""
         return {
             "run_id": self.run_id,
             "label": self.label,
             "enabled_categories": self.enabled_categories,
+            "languages": [get_language(c).name for c in self.languages],
             "num_tests": self.num_tests,
             "beam_width": self.beam_width,
             "branching_factor": self.branching_factor,
