@@ -26,7 +26,7 @@ GOAL_CONCURRENCY = 4
 
 def _build_components(
     config: RunConfig, settings: Settings
-) -> tuple[CrescendoAttacker, TargetCaller, JudgeStack]:
+) -> tuple[CrescendoAttacker, object, JudgeStack]:
     if config.mock:
         return (
             CrescendoAttacker(MockAttackerProvider()),
@@ -34,18 +34,28 @@ def _build_components(
             HeuristicJudgeStack(),
         )
 
-    missing = [
-        name
-        for name, val in {
-            "ATTACKER_ENDPOINT": settings.attacker_endpoint,
-            "ATTACKER_MODEL": settings.attacker_model,
+    kind = (settings.target_kind or "openai").lower()
+
+    required = {
+        "ATTACKER_ENDPOINT": settings.attacker_endpoint,
+        "ATTACKER_MODEL": settings.attacker_model,
+        "JUDGE_ENDPOINT": settings.judge_endpoint,
+        "JUDGE_MODEL": settings.judge_model,
+    }
+    if kind == "smartai":
+        required.update({
+            "SMARTAI_BASE": settings.smartai_base,
+            "SMARTAI_LOGIN_URL": settings.smartai_login_url,
+            "SMARTAI_WEB_USER": settings.smartai_web_user,
+            "SMARTAI_WEB_PASS": settings.smartai_web_pass,
+            "SMARTAI_MSISDN": settings.smartai_msisdn,
+        })
+    else:
+        required.update({
             "TARGET_ENDPOINT": settings.target_endpoint,
             "TARGET_MODEL": settings.target_model,
-            "JUDGE_ENDPOINT": settings.judge_endpoint,
-            "JUDGE_MODEL": settings.judge_model,
-        }.items()
-        if not val
-    ]
+        })
+    missing = [name for name, val in required.items() if not val]
     if missing:
         raise RuntimeError(f"Live run missing settings: {', '.join(missing)} (set them or use --mock)")
 
@@ -53,15 +63,25 @@ def _build_components(
         settings.attacker_endpoint, settings.attacker_model, settings.attacker_api_key,
         force_temperature=settings.attacker_force_temperature,
     )
-    target = OpenAICompatProvider(
-        settings.target_endpoint, settings.target_model, settings.target_api_key or "EMPTY",
-        force_temperature=settings.target_force_temperature,
-    )
     judge = OpenAICompatProvider(
         settings.judge_endpoint, settings.judge_model, settings.judge_api_key or "EMPTY",
         force_temperature=settings.judge_force_temperature,
     )
-    return CrescendoAttacker(attacker), TargetCaller(target), LLMJudgeStack(judge)
+
+    if kind == "smartai":
+        from bastus.smartai import SmartAIClient, SmartAITarget
+
+        target = SmartAITarget(SmartAIClient(
+            base=settings.smartai_base, login_url=settings.smartai_login_url,
+            web_user=settings.smartai_web_user, web_pass=settings.smartai_web_pass,
+            msisdn=settings.smartai_msisdn, otp=settings.smartai_otp,
+        ))
+    else:
+        target = TargetCaller(OpenAICompatProvider(
+            settings.target_endpoint, settings.target_model, settings.target_api_key or "EMPTY",
+            force_temperature=settings.target_force_temperature,
+        ))
+    return CrescendoAttacker(attacker), target, LLMJudgeStack(judge)
 
 
 class Runner:
@@ -71,6 +91,10 @@ class Runner:
 
     async def run(self, config: RunConfig, control: RunControl = NULL_CONTROL) -> RunReport:
         attacker, target, judges = _build_components(config, self.settings)
+        # The Smart AI target keeps memory server-side per chat_id — a linear thread.
+        # Beam forking would corrupt it, so force a single candidate per turn.
+        if type(target).__name__ == "SmartAITarget" and config.branching_factor != 1:
+            config.branching_factor = 1
         goals = build_goals(config.enabled_categories, config.num_tests, multimodal=config.multimodal)
         beam = BeamSearch(attacker, target, judges, self.sink)
 

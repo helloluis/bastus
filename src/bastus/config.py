@@ -17,10 +17,21 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    # Target model+harness under test
+    # Target selection: "openai" (OpenAI-compatible endpoint) or "smartai" (Smart AI api-test)
+    target_kind: str = "openai"
+
+    # Target model+harness under test (openai kind)
     target_endpoint: str | None = None
     target_api_key: str | None = None
     target_model: str | None = None
+
+    # Smart AI api-test target (smartai kind)
+    smartai_base: str | None = None            # e.g. https://nmblr.xyz/base-smart/api-test
+    smartai_login_url: str | None = None       # e.g. https://nmblr.xyz/login/login.php
+    smartai_web_user: str | None = None
+    smartai_web_pass: str | None = None
+    smartai_msisdn: str | None = None
+    smartai_otp: str = "123456"
 
     # Attacker model (abliterated, OpenAI-compatible)
     attacker_endpoint: str | None = None

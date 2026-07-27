@@ -60,9 +60,12 @@ class BeamSearch:
             try:
                 image_ref = goal.seed_image_ref if child.depth == 1 else None
                 child.add(Role.ATTACKER, text, image_ref=image_ref)
-                response = await self.target.send(child)
-                child.add(Role.TARGET, response)
-                judgment = await self.judges.judge(goal, response, config.break_threshold)
+                result = await self.target.send(child)
+                child.add(Role.TARGET, result.text)
+                judgment = await self.judges.judge(
+                    goal, result.text, config.break_threshold,
+                    blocked=result.blocked, governance=result.governance,
+                )
             except Exception as exc:  # noqa: BLE001 — one bad candidate must not kill the run
                 await self._emit_error(goal, child.id, f"{type(exc).__name__}: {exc}")
                 return None
@@ -81,7 +84,7 @@ class BeamSearch:
                         "verdict": judgment.verdict.value,
                         "harm": judgment.scores.harm,
                         "attacker": text,
-                        "target": response,
+                        "target": result.text,
                     },
                 )
             )

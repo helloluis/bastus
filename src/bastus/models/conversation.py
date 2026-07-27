@@ -37,6 +37,9 @@ class Branch:
     # Running heuristic value used by beam search to rank/prune frontier branches.
     value: float = 0.0
     depth: int = 0
+    # Server-side conversation handle for targets that keep their own memory
+    # (e.g. the Smart AI API). None until the target assigns one on the first turn.
+    chat_id: str | None = None
 
     def child(self) -> Branch:
         return Branch(
@@ -44,6 +47,7 @@ class Branch:
             messages=list(self.messages),
             parent_id=self.id,
             depth=self.depth + 1,
+            chat_id=self.chat_id,
         )
 
     def add(self, role: Role, content: str, image_ref: str | None = None) -> None:
